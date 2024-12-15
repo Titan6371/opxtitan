@@ -12,6 +12,32 @@ from config import BOT_TOKEN, ADMIN_IDS, GROUP_ID, GROUP_LINK, DEFAULT_THREADS
 proxy_api_url = 'https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http,socks4,socks5&timeout=500&country=all&ssl=all&anonymity=all'
 proxy_iterator = None
 
+# Define paths to data files in the GitHub repository
+REPO_PATH = os.path.dirname(os.path.abspath(__file__))
+USERS_FILE = os.path.join(REPO_PATH, "users.txt")
+LOGS_FILE = os.path.join(REPO_PATH, "logs.txt")
+ATTACKS_FILE = os.path.join(REPO_PATH, "attacks.txt")
+
+# Function to sync data to GitHub
+def sync_to_github():
+    try:
+        os.chdir(REPO_PATH)
+        subprocess.run(["git", "add", "."], check=True)
+        subprocess.run(["git", "commit", "-m", "Bot auto-update"], check=True)
+        subprocess.run(["git", "push"], check=True)
+        print("Data synced to GitHub.")
+    except subprocess.CalledProcessError as e:
+        print(f"Git sync error: {e}")
+
+
+def pull_from_github():
+    try:
+        os.chdir(REPO_PATH)
+        subprocess.run(["git", "pull"], check=True)
+        print("Pulled latest data from GitHub.")
+    except subprocess.CalledProcessError as e:
+        print(f"Git pull error: {e}")
+
 def get_proxies():
     global proxy_iterator
     try:
@@ -75,6 +101,7 @@ def read_users():
 # Save user information
 async def save_user_info(user_id, username):
     try:
+        # Read existing users
         existing_users = {}
         if os.path.exists(USERS_FILE):
             with open(USERS_FILE, "r") as f:
@@ -84,9 +111,13 @@ async def save_user_info(user_id, username):
                         uid, uname = parts
                         existing_users[uid] = uname
 
+        # Append new user if not already present
         if str(user_id) not in existing_users:
             with open(USERS_FILE, "a") as f:
                 f.write(f"{user_id},{username}\n")
+
+            # Sync changes to GitHub
+            sync_to_github()
     except Exception as e:
         logging.error(f"Error saving user info: {str(e)}")
 
@@ -125,6 +156,11 @@ async def save_attack_log(user_id, target_ip, port, duration):
         
         # Save updated attack counts
         save_attack_counts()
+    except Exception as e:
+        logging.error(f"Error saving attack log: {str(e)}")
+
+        # Sync changes to GitHub
+        sync_to_github()
     except Exception as e:
         logging.error(f"Error saving attack log: {str(e)}")
 
@@ -299,6 +335,8 @@ async def set_duration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text(f"✅ 𝗠𝗮𝘅 𝗮𝘁𝘁𝗮𝗰𝗸 𝗱𝘂𝗿𝗮𝘁𝗶𝗼𝗻 𝘀𝗲𝘁 𝘁𝗼 {duration} 𝘀𝗲𝗰𝗼𝗻𝗱𝘀 𝗳𝗼𝗿 {target}.")
     except ValueError:
         await update.message.reply_text("⚠️ 𝗗𝘂𝗿𝗮𝘁𝗶𝗼𝗻 𝗺𝘂𝘀𝘁 𝗯𝗲 𝗮𝗻 𝗶𝗻𝘁𝗲𝗴𝗲𝗿.")
+    # Sync updated durations to GitHub
+    sync_to_github()
 
 # View logs command (Admin-only)
 async def logs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -336,6 +374,8 @@ async def users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # Main application setup
 if __name__ == '__main__':
+    # Pull latest data from GitHub before starting
+    pull_from_github()
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("bgmi", bgmi))
