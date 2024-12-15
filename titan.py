@@ -5,8 +5,23 @@ import itertools
 import requests
 import os
 from telegram import Update
+import time
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from config import BOT_TOKEN, ADMIN_IDS, GROUP_ID, GROUP_LINK, DEFAULT_THREADS
+
+
+class SyncHandler(FileSystemEventHandler):
+    def on_modified(self, event):
+        if event.src_path.endswith(('.txt')):
+            print(f"Detected change in {event.src_path}. Syncing to GitHub...")
+            # Add, commit, and push changes
+            subprocess.run(["git", "add", "*.txt"])
+            subprocess.run(["git", "commit", "-m", "Auto-updated .txt files"])
+            subprocess.run(["git", "push", "https://oauth2:$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@github.com/Titan6371/opxtitan.git", "HEAD:main"], check=True)
+
+
 
 # Proxy-related functions
 proxy_api_url = 'https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http,socks4,socks5&timeout=500&country=all&ssl=all&anonymity=all'
@@ -336,6 +351,18 @@ async def users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # Main application setup
 if __name__ == '__main__':
+    path_to_watch = os.getcwd()
+    event_handler = SyncHandler()
+    observer = Observer()
+    observer.schedule(event_handler, path=path_to_watch, recursive=False)
+    print(f"Watching for changes in {path_to_watch}...")
+    observer.start()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("bgmi", bgmi))
