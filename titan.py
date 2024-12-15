@@ -6,8 +6,6 @@ import requests
 import os
 from telegram import Update
 import time
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from config import BOT_TOKEN, ADMIN_IDS, GROUP_ID, GROUP_LINK, DEFAULT_THREADS
 
