@@ -7,16 +7,14 @@ setup_and_run:
   image: python:3.9
   script:
     - echo "Setting up environment..."
-    - pip install telebot flask pymongo aiohttp python-telegram-bot watchdog
+    - pip install telebot flask pymongo aiohttp python-telegram-bot
     - chmod +x *
-    # Fetch the latest files from GitHub
-    - echo "Fetching latest data from GitHub..."
-    - git pull https://oauth2:$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@github.com/Titan6371/opxtitan.git main || echo "No updates found."
-    # Start the bot and file sync watcher
-    - echo "Running the bot and file sync watcher..."
+    - echo "Running the compiled binary..."
     - |
-      python3 watch_and_sync.py &
-      python3 titan.py
+      while true; do
+        python3 titan.py || echo "Application crashed. Restarting..."
+        sleep 5
+      done
   timeout: 3h  
   only:
     - main
