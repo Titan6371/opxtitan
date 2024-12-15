@@ -12,31 +12,58 @@ from config import BOT_TOKEN, ADMIN_IDS, GROUP_ID, GROUP_LINK, DEFAULT_THREADS
 proxy_api_url = 'https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http,socks4,socks5&timeout=500&country=all&ssl=all&anonymity=all'
 proxy_iterator = None
 
-# Define paths to data files in the GitHub repository
-REPO_PATH = os.path.dirname(os.path.abspath(__file__))
-USERS_FILE = os.path.join(REPO_PATH, "users.txt")
-LOGS_FILE = os.path.join(REPO_PATH, "logs.txt")
-ATTACKS_FILE = os.path.join(REPO_PATH, "attacks.txt")
+def find_repo_path():
+    try:
+        # Start from the current directory
+        current_path = os.getcwd()
+        
+        # Traverse up the directory structure to find the repo
+        while not os.path.exists(os.path.join(current_path, '.git')):
+            current_path = os.path.dirname(current_path)
+            if current_path == '/':  # Reached the root without finding a git repo
+                raise FileNotFoundError("Repository path not found.")
+        
+        return current_path
 
-# Function to sync data to GitHub
+    except Exception as e:
+        print(f"Error finding repository path: {e}")
+        return None
+
+# Set REPO_PATH using the dynamically found path
+REPO_PATH = find_repo_path()
+
 def sync_to_github():
     try:
         os.chdir(REPO_PATH)
+
+        token = os.getenv("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")
+        if not token:
+            raise ValueError("GITHUB_TOKEN is not set in the environment.")
+
         subprocess.run(["git", "add", "."], check=True)
         subprocess.run(["git", "commit", "-m", "Bot auto-update"], check=True)
-        subprocess.run(["git", "push"], check=True)
+        subprocess.run(["git", "push", f"https://oauth2:{token}@github.com/<your_username>/<your_repo>.git"], check=True)
+
         print("Data synced to GitHub.")
     except subprocess.CalledProcessError as e:
         print(f"Git sync error: {e}")
-
+    except Exception as e:
+        print(f"Error during sync: {e}")
 
 def pull_from_github():
     try:
         os.chdir(REPO_PATH)
-        subprocess.run(["git", "pull"], check=True)
+        token = os.getenv("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")
+        if not token:
+            raise ValueError("GITHUB_TOKEN is not set in the environment.")
+
+        subprocess.run(["git", "pull", f"https://oauth2:{token}@github.com/<your_username>/<your_repo>.git"], check=True)
         print("Pulled latest data from GitHub.")
     except subprocess.CalledProcessError as e:
         print(f"Git pull error: {e}")
+    except Exception as e:
+        print(f"Error during pull: {e}")
+
 
 def get_proxies():
     global proxy_iterator
