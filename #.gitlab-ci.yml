@@ -1,6 +1,5 @@
 stages:
   - setup_and_run
-  - sync_to_github
   - wait_and_restart
 
 setup_and_run:
@@ -8,36 +7,22 @@ setup_and_run:
   image: python:3.9
   script:
     - echo "Setting up environment..."
-    - pip install telebot flask pymongo aiohttp python-telegram-bot
+    - pip install telebot flask pymongo aiohttp python-telegram-bot watchdog
     - chmod +x *
-    - echo "Running the compiled binary..."
+    # Fetch the latest files from GitHub
+    - echo "Fetching latest data from GitHub..."
+    - git pull https://oauth2:$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@github.com/Titan6371/opxtitan.git main || echo "No updates found."
+    # Start the bot and file sync watcher
+    - echo "Running the bot and file sync watcher..."
     - |
-      while true; do
-        python3 titan.py || echo "Application crashed. Restarting..."
-        sleep 5
-      done
+      python3 watch_and_sync.py &
+      python3 titan.py
   timeout: 3h  
   only:
     - main
   after_script:
     - echo "Pipeline timed out. Triggering a new pipeline..."
     - curl -X POST -F token=$CI_JOB_TOKEN -F ref=$CI_COMMIT_REF_NAME https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/trigger/pipeline
-
-sync_to_github:
-  stage: sync_to_github
-  image: alpine/git:latest
-  script:
-    - echo "Syncing updated .txt files back to GitHub..."
-    # Configure Git
-    - git config --global user.name "Titan6371"
-    - git config --global user.email "instagrampassrecovey+10@outlook.com"
-    # Add and commit changes
-    - git add users.txt attacks.txt logs.txt
-    - git commit -m "Updated .txt files with latest data"
-    # Push changes back to GitHub
-    - git push https://oauth2:$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@github.com/Titan6371/opxtitan.git HEAD:main
-  only:
-    - main
 
 wait_and_restart:
   stage: wait_and_restart
