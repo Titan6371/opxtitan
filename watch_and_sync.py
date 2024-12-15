@@ -11,8 +11,8 @@ class SyncHandler(FileSystemEventHandler):
                 print(f"Detected change in {event.src_path}. Syncing to GitHub...")
                 subprocess.run(["git", "add", "*.txt"])
                 subprocess.run(["git", "commit", "-m", "Auto-updated .txt files"])
-                subprocess.run(["git", "push", "https://oauth2:$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@github.com/Titan6371/opxtitan.git", "HEAD:main"], check=True)
-            except Exception as e:
+                subprocess.run(["git", "push", "https://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@github.com/Titan6371/opxtitan.git", "HEAD:main"], check=True)
+
                 print(f"Error syncing to GitHub: {e}")
 
 if __name__ == "__main__":
