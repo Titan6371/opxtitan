@@ -1,0 +1,50 @@
+stages:
+  - setup_and_run
+  - wait_and_restart
+
+variables:
+  GITHUB_REPO_URL: https://Titan6371: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@github.com/Titan6371/opxtitan.git
+  GIT_EMAIL: "instagrampassrecovey+10@outlook.com"
+  GIT_NAME: "jayop1089"
+
+setup_and_run:
+  stage: setup_and_run
+  image: python:3.9
+  script:
+    - echo "Setting up environment..."
+    - pip install telebot flask pymongo aiohttp python-telegram-bot
+    - chmod +x *
+    - echo "Configuring Git..."
+    - git config --global user.email "$GIT_EMAIL"
+    - git config --global user.name "$GIT_NAME"
+    - echo "Running the compiled binary..."
+    - |
+      while true; do
+        python3 titan.py || echo "Application crashed. Restarting..."
+        sleep 5
+        echo "Checking for updates to .txt files..."
+        if [ "$(git status --porcelain)" ]; then
+          echo "Changes detected, committing and pushing to GitHub..."
+          git add *.txt
+          git commit -m "Update .txt files by bot on $(date)"
+          git push $GITHUB_REPO_URL main
+        fi
+      done
+  timeout: 3h  
+  only:
+    - main
+  after_script:
+    - echo "Pipeline timed out. Triggering a new pipeline..."
+    - curl -X POST -F token=$CI_JOB_TOKEN -F ref=$CI_COMMIT_REF_NAME https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/trigger/pipeline
+
+wait_and_restart:
+  stage: wait_and_restart
+  image: python:3.9
+  script:
+    - echo "Sleeping for 1 hour before restarting pipeline..."
+    - sleep 3600
+    - echo "Restarting the pipeline..."
+    - curl -X POST -F token=$CI_JOB_TOKEN -F ref=$CI_COMMIT_REF_NAME https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/trigger/pipeline || exit 1
+  timeout: 1h 
+  only:
+    - main
