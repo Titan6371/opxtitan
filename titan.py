@@ -5,6 +5,9 @@ import itertools
 import requests
 import os
 import time
+import signal
+import sys
+from pymongo import MongoClient
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from config import BOT_TOKEN, ADMIN_IDS, GROUP_ID, GROUP_LINK, DEFAULT_THREADS
@@ -48,12 +51,109 @@ user_attack_counts = {}
 user_cooldowns = {}
 
 
+# MongoDB configuration
+MONGO_URI = "mongodb+srv://titanop24:titanop24@cluster0.qbdl8.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"  # Example: mongodb+srv://username:password@cluster.mongodb.net/
+DATABASE_NAME = "titanop24"
+
+# Connect to MongoDB
+client = MongoClient(MONGO_URI)
+db = client[DATABASE_NAME]
+
+# MongoDB collections
+users_collection = db["users"]
+attacks_collection = db["attacks"]
+logs_collection = db["logs"]
 
 # File paths
 USERS_FILE = "users.txt"
 LOGS_FILE = "logs.txt"
-# Load attack counts from file (if needed)
 ATTACKS_FILE = "attacks.txt"
+DURATION_FILE = "duration.txt"
+
+# Save all .txt data to MongoDB
+def save_data_to_mongo():
+    try:
+        # Save Users
+        if os.path.exists(USERS_FILE):
+            with open(USERS_FILE, "r") as f:
+                users = [{"user_id": line.split(",")[0], "username": line.split(",")[1].strip()} for line in f]
+                users_collection.delete_many({})  # Clear existing data
+                if users: users_collection.insert_many(users)
+        
+        # Save Attack Counts
+        if os.path.exists(ATTACKS_FILE):
+            with open(ATTACKS_FILE, "r") as f:
+                attacks = [{"user_id": line.split(",")[0], "attack_count": int(line.split(",")[1].strip())} for line in f]
+                attacks_collection.delete_many({})
+                if attacks: attacks_collection.insert_many(attacks)
+        
+        # Save Logs
+        if os.path.exists(LOGS_FILE):
+            with open(LOGS_FILE, "r") as f:
+                logs = [{"log": line.strip()} for line in f]
+                logs_collection.delete_many({})
+                if logs: logs_collection.insert_many(logs)
+    except Exception as e:
+        logging.error(f"Error saving data to MongoDB: {str(e)}")
+
+        if os.path.exists(DURATION_FILE):
+            with open(DURATION_FILE, "r") as f:
+                durations = [{"user_id": line.split(",")[0], "max_duration": int(line.split(",")[1])} for line in f]
+                db["durations"].delete_many({})  # Clear previous data
+                if durations:
+                    db["durations"].insert_many(durations)
+    except Exception as e:
+        logging.error(f"Error saving durations to MongoDB: {str(e)}")
+
+        
+
+# Fetch all data from MongoDB and save back to .txt
+def fetch_data_from_mongo():
+    try:
+        # Fetch all necessary data
+        # Fetch Users
+        
+        users = users_collection.find()
+        with open(USERS_FILE, "w") as f:
+            for user in users:
+                f.write(f"{user.get('user_id')},{user.get('username')}\n")
+
+        # Fetch Attack Counts
+        attacks = attacks_collection.find()
+        with open(ATTACKS_FILE, "w") as f:
+            for attack in attacks:
+                f.write(f"{attack.get('user_id')},{attack.get('attack_count')}\n")
+
+        # Fetch Logs
+        logs = logs_collection.find()
+        print("Logs from MongoDB:")
+        for log in logs:
+            print(log)
+    except Exception as e:
+            print("Error fetching logs:", e)
+
+
+    except Exception as e:
+        logging.error(f"Error fetching data from MongoDB: {str(e)}")
+
+
+
+# Call fetch_data_from_mongo() at bot startup
+fetch_data_from_mongo()
+
+def fetch_user_durations():
+    try:
+        # Fetch User Durations
+        durations = db["durations"].find()
+        global user_durations
+        user_durations = {int(d["user_id"]): d["max_duration"] for d in durations}
+        
+        print("User durations loaded from MongoDB:", user_durations)  # Debug line
+
+    except Exception as e:
+        logging.error(f"Error fetching user durations from MongoDB: {str(e)}")
+
+fetch_user_durations()
 
 # Ensure commands are executed in the correct group
 async def ensure_correct_group(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -78,9 +178,9 @@ def read_users():
         logging.error(f"Error reading users file: {str(e)}")
         return []
 
-# Save user information
 async def save_user_info(user_id, username):
     try:
+        # Save to users.txt (File-based storage)
         existing_users = {}
         if os.path.exists(USERS_FILE):
             with open(USERS_FILE, "r") as f:
@@ -93,8 +193,16 @@ async def save_user_info(user_id, username):
         if str(user_id) not in existing_users:
             with open(USERS_FILE, "a") as f:
                 f.write(f"{user_id},{username}\n")
+
+        # Save to MongoDB
+        users_collection.update_one(
+            {"user_id": str(user_id)},
+            {"$set": {"user_id": str(user_id), "username": username}},
+            upsert=True
+        )
     except Exception as e:
         logging.error(f"Error saving user info: {str(e)}")
+
 
 
 def load_attack_counts():
@@ -120,19 +228,29 @@ def save_attack_counts():
 async def save_attack_log(user_id, target_ip, port, duration):
     global user_attack_counts
     try:
+        # Save to logs.txt
         with open(LOGS_FILE, "a") as f:
             f.write(f"User: {user_id}, Target: {target_ip}:{port}, Duration: {duration}s\n")
         
-        # Increment user attack count
+        # Save attack counts
         if user_id in user_attack_counts:
             user_attack_counts[user_id] += 1
         else:
             user_attack_counts[user_id] = 1
-        
-        # Save updated attack counts
-        save_attack_counts()
+
+        # Save to MongoDB
+        logs_collection.insert_one({
+            "user_id": str(user_id),
+            "target_ip": target_ip,
+            "port": port,
+            "duration": duration,
+            "timestamp": time.time(),
+            "log": f"User: {user_id}, Target: {target_ip}:{port}, Duration: {duration}s"
+        })
     except Exception as e:
         logging.error(f"Error saving attack log: {str(e)}")
+
+
 
 
 async def attacks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -250,20 +368,21 @@ async def bgmi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Check if an attack is already in progress
     if active_attack:
         await update.message.reply_text(
-            "🚫 ​𝐚𝐧 𝐚𝐭𝐭𝐚𝐜𝐤 𝐢𝐬 𝐚𝐥𝐫𝐞𝐚𝐝𝐲 𝐢𝐧 𝐩𝐫𝐨𝐠𝐫𝐞𝐬𝐬. 𝐩𝐥𝐞𝐚𝐬𝐞 𝐰𝐚𝐢𝐭 𝐟𝐨𝐫 𝐭𝐡𝐞 𝐜𝐮𝐫𝐫𝐞𝐧𝐭 𝐚𝐭𝐭𝐚𝐜𝐤 𝐭𝐨 𝐟𝐢𝐧𝐢𝐬𝐡 𝐛𝐞𝐟𝐨𝐫𝐞 𝐬𝐭𝐚𝐫𝐭𝐢𝐧𝐠 𝐚 𝐧𝐞𝐰 𝐨𝐧𝐞."
+            "🚫 𝐀𝐧 𝐚𝐭𝐭𝐚𝐜𝐤 𝐢𝐬 𝐚𝐥𝐫𝐞𝐚𝐝𝐲 𝐢𝐧 𝐩𝐫𝐨𝐠𝐫𝐞𝐬𝐬. 𝐏𝐥𝐞𝐚𝐬𝐞 𝐰𝐚𝐢𝐭 𝐟𝐨𝐫 𝐢𝐭 𝐭𝐨 𝐟𝐢𝐧𝐢𝐬𝐡."
         )
         return
 
-    # Check if the user is on cooldown
+    # Check user cooldown
     if user_id in user_cooldowns:
         time_since_last_attack = current_time - user_cooldowns[user_id]
         if time_since_last_attack < cooldown_time:
             remaining_time = int(cooldown_time - time_since_last_attack)
-            await update.message.reply_text(f"⏳ 𝐲𝐨𝐮 𝐦𝐮𝐬𝐭 𝐰𝐚𝐢𝐭​ {remaining_time} ​𝐬𝐞𝐜𝐨𝐧𝐝𝐬 𝐛𝐞𝐟𝐨𝐫𝐞 𝐬𝐭𝐚𝐫𝐭𝐢𝐧𝐠 𝐚𝐧𝐨𝐭𝐡𝐞𝐫 𝐚𝐭𝐭𝐚𝐜𝐤​.")
+            await update.message.reply_text(f"⏳ 𝐘𝐨𝐮 𝐦𝐮𝐬𝐭 𝐰𝐚𝐢𝐭 {remaining_time} 𝐬𝐞𝐜𝐨𝐧𝐝𝐬 𝐛𝐞𝐟𝐨𝐫𝐞 𝐬𝐭𝐚𝐫𝐭𝐢𝐧𝐠 𝐚𝐧𝐨𝐭𝐡𝐞𝐫 𝐚𝐭𝐭𝐚𝐜𝐤.")
             return
 
+    # Parse arguments
     if len(context.args) != 3:
-        await update.message.reply_text("🛡️ 𝐮𝐬𝐞 /𝐛𝐠𝐦𝐢 <𝐢𝐩> <𝐩𝐨𝐫𝐭> <𝐭𝐢𝐦𝐞> 𝐭𝐨 𝐬𝐭𝐚𝐫𝐭 𝐚𝐧 𝐚𝐭𝐭𝐚𝐜𝐤​")
+        await update.message.reply_text("🛡️ 𝐔𝐬𝐞 /𝐛𝐠𝐦𝐢 <𝐢𝐩> <𝐩𝐨𝐫𝐭> <𝐭𝐢𝐦𝐞> 𝐭𝐨 𝐬𝐭𝐚𝐫𝐭 𝐚𝐧 𝐚𝐭𝐭𝐚𝐜𝐤.")
         return
 
     target_ip = context.args[0]
@@ -271,26 +390,27 @@ async def bgmi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         port = int(context.args[1])
         duration = int(context.args[2])
     except ValueError:
-        await update.message.reply_text("⚠️ 𝐩𝐨𝐫𝐭 𝐚𝐧𝐝 𝐭𝐢𝐦𝐞 𝐦𝐮𝐬𝐭 𝐛𝐞 𝐢𝐧𝐭𝐞𝐠𝐞𝐫𝐬​.")
+        await update.message.reply_text("⚠️ 𝐏𝐨𝐫𝐭 𝐚𝐧𝐝 𝐭𝐢𝐦𝐞 𝐦𝐮𝐬𝐭 𝐛𝐞 𝐢𝐧𝐭𝐞𝐠𝐞𝐫𝐬.")
         return
 
-    max_duration = user_durations.get(user_id, MAX_DURATION)
+    # Enforce max duration for the user
+    max_duration = user_durations.get(user_id, MAX_DURATION)  # Default if not set
     if duration > max_duration:
-        await update.message.reply_text(f"⚠️ ​𝐲𝐨𝐮𝐫 𝐦𝐚𝐱 𝐚𝐭𝐭𝐚𝐜𝐤 𝐭𝐢𝐦𝐞 𝐢𝐬​ {max_duration} 𝐬𝐞𝐜𝐨𝐧𝐝𝐬 𝐚𝐭 𝐬𝐞𝐭 𝐛𝐲 𝐭𝐡𝐞 𝐚𝐝𝐦𝐢𝐧​.")
         duration = max_duration
+        await update.message.reply_text(f"⚠️ 𝐌𝐚𝐱 𝐚𝐭𝐭𝐚𝐜𝐤 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧 𝐟𝐨𝐫 𝐲𝐨𝐮 𝐢𝐬 {max_duration} 𝐬𝐞𝐜𝐨𝐧𝐝𝐬.")
 
-    # Log the attack, update cooldown, and mark the attack as active
-    user_cooldowns[user_id] = current_time  # Set cooldown for the user
-    active_attack = True  # Mark the attack as active
+    # Update cooldown and log attack
+    user_cooldowns[user_id] = current_time
+    active_attack = True
     await save_attack_log(user_id, target_ip, port, duration)
 
-    # Notify users and start the attack
+    # Start attack
     attack_message = await update.message.reply_text(
-        f"🚀 ​𝐚𝐭𝐭𝐚𝐜𝐤 𝐬𝐭𝐚𝐫𝐭𝐞𝐝 𝐨𝐧​ {target_ip}:{port} 𝐟𝐨𝐫 {duration} 𝐬𝐞𝐜𝐨𝐧𝐝𝐬 𝐰𝐢𝐭𝐡​ {DEFAULT_THREADS} 𝐭𝐡𝐫𝐞𝐚𝐝𝐬."
+        f"🚀 𝐀𝐭𝐭𝐚𝐜𝐤 𝐬𝐭𝐚𝐫𝐭𝐞𝐝 𝐨𝐧 {target_ip}:{port} 𝐟𝐨𝐫 {duration} 𝐬𝐞𝐜𝐨𝐧𝐝𝐬."
     )
     asyncio.create_task(start_attack(target_ip, port, duration, user_id, attack_message, context))
 
-    # Reset active_attack once the attack finishes
+    # Reset active_attack after completion
     async def reset_attack_status():
         global active_attack
         await asyncio.sleep(duration)
@@ -310,29 +430,41 @@ async def set_duration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     if len(context.args) != 2:
-        await update.message.reply_text("🛡️ 𝐮ꜱ𝐚𝐠𝐞: /𝐬𝐞𝐭 <𝐮𝐢𝐝/𝐮𝐬𝐞𝐫𝐧𝐚𝐦𝐞> <𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧>")
+        await update.message.reply_text("🛡️ 𝐮𝐬𝐚𝐠𝐞: /𝐬𝐞𝐭 <𝐮𝐢𝐝/𝐮𝐬𝐞𝐫𝐧𝐚𝐦𝐞> <𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧>")
         return
 
     try:
         target = context.args[0]
         duration = int(context.args[1])
 
+        target_user_id = None
         if target.isdigit():
-            user_durations[int(target)] = duration
+            target_user_id = int(target)
         else:
-            user_found = False
+            # Find user ID by username
             for uid, uname in read_users():
                 if uname == target:
-                    user_durations[int(uid)] = duration
-                    user_found = True
+                    target_user_id = int(uid)
                     break
-            if not user_found:
-                await update.message.reply_text("⚠️ 𝐮ꜱ𝐞𝐫 𝐧𝐨𝐭 𝐟𝐨𝐮𝐧𝐝.")
-                return
 
-        await update.message.reply_text(f"✅ 𝐦𝐚𝐱 𝐚𝐭𝐭𝐚𝐜𝐤 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧 𝐬𝐞𝐭 𝐭𝐨 {duration} 𝐬𝐞𝐜𝐨𝐧𝐝ꜱ 𝐟𝐨𝐫 {target}.")
+        if target_user_id is None:
+            await update.message.reply_text("⚠️ 𝐮𝐬𝐞𝐫 𝐧𝐨𝐭 𝐟𝐨𝐮𝐧𝐝.")
+            return
+
+        # Update duration in the dictionary
+        user_durations[target_user_id] = duration
+
+        # Save to MongoDB
+        db["durations"].update_one(
+            {"user_id": str(target_user_id)},
+            {"$set": {"user_id": str(target_user_id), "max_duration": duration}},
+            upsert=True
+        )
+
+        await update.message.reply_text(f"✅ 𝐦𝐚𝐱 𝐚𝐭𝐭𝐚𝐜𝐤 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧 𝐬𝐞𝐭 𝐭𝐨 {duration} 𝐬𝐞𝐜𝐨𝐧𝐝𝐬 𝐟𝐨𝐫 {target}.")
     except ValueError:
         await update.message.reply_text("⚠️ 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧 𝐦𝐮𝐬𝐭 𝐛𝐞 𝐚𝐧 𝐢𝐧𝐭𝐞𝐠𝐞𝐫.")
+
 
 # View logs command (Admin-only)
 async def logs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -367,6 +499,15 @@ async def users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(f"👥 Users:\n{users}")
     except Exception as e:
         await update.message.reply_text("⚠️ 𝐧𝐨 𝐮𝐬𝐞𝐫𝐬 𝐚𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞.")
+
+def handle_exit(sig, frame):
+    logging.info("Saving data to MongoDB before shutting down...")
+    save_data_to_mongo()
+    sys.exit(0)
+
+# Handle termination signals
+signal.signal(signal.SIGINT, handle_exit)
+signal.signal(signal.SIGTERM, handle_exit)
 
 # Main application setup
 if __name__ == '__main__':
