@@ -401,10 +401,19 @@ async def bgmi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         duration = max_duration
         await update.message.reply_text(f"⚠️ 𝐌𝐚𝐱 𝐚𝐭𝐭𝐚𝐜𝐤 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧 𝐟𝐨𝐫 𝐲𝐨𝐮 𝐢𝐬 {max_duration} 𝐬𝐞𝐜𝐨𝐧𝐝𝐬.")
 
-    # Update cooldown and log attack
+    # Update cooldown
     user_cooldowns[user_id] = current_time
     active_attack = True
+
+    # Save the attack log and increment the attack count
     await save_attack_log(user_id, target_ip, port, duration)
+
+    # Update attacks_collection in MongoDB
+    attacks_collection.update_one(
+        {"user_id": str(user_id)},
+        {"$inc": {"attack_count": 1}},  # Increment attack count
+        upsert=True
+    )
 
     # Start attack
     attack_message = await update.message.reply_text(
@@ -419,6 +428,7 @@ async def bgmi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         active_attack = False
 
     asyncio.create_task(reset_attack_status())
+
 
 
 # Set max duration command (Admin-only)
