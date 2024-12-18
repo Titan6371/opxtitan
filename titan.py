@@ -262,23 +262,26 @@ async def attacks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("❌ 𝐛𝐚𝐝𝐦𝐨ꜱ𝐢 𝐧𝐚𝐡𝐢 𝐦𝐢𝐭𝐭𝐚𝐫..!!!")
         return
 
-    # Load attack data
-    load_attack_counts()
+    # Fetch attack data from MongoDB
+    global user_attack_counts
+    user_attack_counts = {}
+    attacks = attacks_collection.find()
+    for attack in attacks:
+        user_attack_counts[int(attack['user_id'])] = attack['attack_count']
 
     # Prepare attack report
     report_lines = []
     grand_total = 0
 
     for uid, count in user_attack_counts.items():
-        # Default values
         username = "Unknown"
         display_name = "Unknown"
 
         # Find user info
         for u_id, u_name in read_users():
             if int(u_id) == uid:
-                username = u_name  # Extract username
-                user = await context.bot.get_chat(uid)  # Fetch user info
+                username = u_name
+                user = await context.bot.get_chat(uid)
                 display_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
                 break
 
@@ -287,14 +290,13 @@ async def attacks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         grand_total += count
 
-    # Add grand total
     report_lines.append(f"\n👥 ​𝗧𝗢𝗧𝗔𝗟 𝗔𝗧𝗧𝗔𝗖𝗞𝗦​:- {grand_total}")
 
-    # Send report
     if report_lines:
         await update.message.reply_text("\n".join(report_lines))
     else:
         await update.message.reply_text("⚠️ 𝐧𝐨 𝐚𝐭𝐭𝐚𝐜𝐤 𝐝𝐚𝐭𝐚 𝐚𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞.")
+
 
 
 async def start_attack(target_ip, port, duration, user_id, original_message, context):
@@ -477,11 +479,16 @@ async def logs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     try:
-        with open(LOGS_FILE, "r") as f:
-            logs = f.read()
-        await update.message.reply_text(f"📊 Attack logs:\n{logs}")
+        # Fetch logs from MongoDB
+        logs = logs_collection.find()
+        log_entries = [log['log'] for log in logs]
+        if log_entries:
+            await update.message.reply_text(f"📊 Attack logs:\n" + "\n".join(log_entries))
+        else:
+            await update.message.reply_text("⚠️ 𝐧𝐨 𝐥𝐨𝐠𝐬 𝐚𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞.")
     except Exception as e:
-        await update.message.reply_text("⚠️ 𝐧𝐨 𝐥𝐨𝐠𝐬 𝐚𝐯𝐢𝐥𝐚𝐛𝐞.")
+        await update.message.reply_text("⚠️ 𝐞𝐫𝐫𝐨𝐫 𝐟𝐞𝐭𝐜𝐡𝐢𝐧𝐠 𝐥𝐨𝐠𝐬.")
+
 
 # View users command (Admin-only)
 async def users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
