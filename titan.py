@@ -325,7 +325,7 @@ async def start_attack(target_ip, port, duration, user_id, original_message, con
 
         del user_processes[user_id]
         try:
-            await original_message.reply_text(f"🛑 𝐚𝐭𝐭𝐚𝐜𝐤 𝐟𝐢𝐧𝐢𝐬𝐡𝐞𝐝 𝐨𝐧​ 🛑\n 𝐇𝐎𝐒𝐓===>  {target_ip}\n𝐏𝐎𝐑𝐓===>  {port}\n𝐓𝐈𝐌𝐄===>  {duration}")
+            await original_message.reply_text(f"🚫🛑 𝐚𝐭𝐭𝐚𝐜𝐤 𝐟𝐢𝐧𝐢𝐬𝐡𝐞𝐝 𝐨𝐧​ 🛑🚫\n 𝐇𝐎𝐒𝐓===>  {target_ip}\n𝐏𝐎𝐑𝐓===>  {port}\n𝐓𝐈𝐌𝐄===>  {duration}")
         except Exception:
             pass  # Silently ignore errors when sending the reply
 
@@ -422,7 +422,7 @@ async def bgmi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Start attack
      # Start attack
     attack_message = await update.message.reply_text(
-        f"🚀 𝐀𝐭𝐭𝐚𝐜𝐤 𝐬𝐭𝐚𝐫𝐭𝐞𝐝 𝐨𝐧 \n𝐇𝐎𝐒𝐓===> {target_ip}\n𝐏𝐎𝐑𝐓===> {port}\n𝐓𝐈𝐌𝐄===> {duration}\n𝐔𝐒𝐄𝐑===> {username}"
+        f"💥🚀 𝐀𝐭𝐭𝐚𝐜𝐤 𝐬𝐭𝐚𝐫𝐭𝐞𝐝 𝐨𝐧 🚀💥\n𝐇𝐎𝐒𝐓===> {target_ip}\n𝐏𝐎𝐑𝐓===> {port}\n𝐓𝐈𝐌𝐄===> {duration}\n𝐔𝐒𝐄𝐑===> {display_name}"
     )
 
     asyncio.create_task(start_attack(target_ip, port, duration, user_id, attack_message, context))
