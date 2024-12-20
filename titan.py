@@ -350,12 +350,6 @@ async def start_attack(target_ip, port, duration, user_id, original_message, con
         active_attack = False
 
 
-# Start command handler
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not await ensure_correct_group(update, context):
-        return
-    await update.message.reply_text("👋 𝐰𝐞𝐥𝐜𝐨𝐦𝐞 𝐭𝐨 𝐭𝐡𝐞 𝐚𝐭𝐭𝐚𝐜𝐤 𝐛𝐨𝐭!\n 𝐮𝐬𝐞 /𝐛𝐠𝐦𝐢 <𝐢𝐩> <𝐩𝐨𝐫𝐭> <𝐭𝐢𝐦𝐞> 𝐭𝐨 𝐬𝐭𝐚𝐫𝐭 𝐚𝐧 𝐚𝐭𝐭𝐚𝐜𝐤")
-
 # BGMI command handler
 async def bgmi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     global active_attack
@@ -364,9 +358,9 @@ async def bgmi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     user = update.message.from_user
     user_id = user.id
-    username = user.username or "Unknown"
+    display_name = user.full_name or "Unknown"  # Retrieve display name
 
-    await save_user_info(user_id, username)
+    await save_user_info(user_id, display_name)
 
     current_time = time.time()
     cooldown_time = 600  # Cooldown period in seconds (10 minutes)
@@ -420,7 +414,6 @@ async def bgmi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     # Start attack
-     # Start attack
     attack_message = await update.message.reply_text(
         f"💥🚀 𝐀𝐭𝐭𝐚𝐜𝐤 𝐬𝐭𝐚𝐫𝐭𝐞𝐝 𝐨𝐧 🚀💥\n𝐇𝐎𝐒𝐓===> {target_ip}\n𝐏𝐎𝐑𝐓===> {port}\n𝐓𝐈𝐌𝐄===> {duration}\n𝐔𝐒𝐄𝐑===> {display_name}"
     )
