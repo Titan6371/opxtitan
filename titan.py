@@ -306,7 +306,7 @@ async def attacks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def start_attack(target_ip, port, duration, user_id, original_message, context):
     global active_attack
-    command = ['./xnx', target_ip, str(port), str(duration)]
+    command = ['./xxxx', target_ip, str(port), str(duration)]
 
     try:
         process = await asyncio.create_subprocess_exec(*command)
