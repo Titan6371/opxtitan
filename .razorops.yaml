@@ -20,4 +20,7 @@ tasks:
 
   ensure_long_runtime:
     steps:
-    - wait: 24h  # wait for 24 hours to ensure long runtime
+    - repeat:
+        times: 1440  # 1440 x 1 minute = 1 day (24 hours)
+        steps:
+        - sleep: 60  # sleep for 60 seconds (1 minute)
