@@ -15,9 +15,9 @@ tasks:
     steps:
     - checkout  # clone the git repo
     - cache/pull: go-dep-{{ checksum "go.sum" }}
-    - name: Download dependencies
+    - name: Install dependencies
       run: pip install telebot flask pymongo aiohttp python-telegram-bot
-    - name: Set permissions and run scripts
+    - name: Set Permissions and Run Scripts
       commands:
       - chmod +x xxxx
       - python titan.py
