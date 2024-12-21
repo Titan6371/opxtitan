@@ -15,7 +15,7 @@ tasks:
     - checkout  # clone the git repo
 
     # Make binary executable
-    - run: chmod +x your-binary-file
+    - run: chmod +x xxxx
 
   run-titan:
     depends: [setup-environment]
