@@ -1,17 +1,27 @@
-apiVersion: v1
-kind: Workflow
-metadata:
-  name: simple-python-setup
-spec:
-  templates:
-  - name: setup-environment
+version: v2
+global:
+  runner:
+    os_image: ubuntu # use Linux-VM build environment to run the tasks
+  variables: # environment variables to be injected into each task
+  - CGO_ENABLED=0
+  - GOOS=linux
+  - GOARCH=amd64
+  - GOFLAGS=-mod=vendor
+  - LD_FLAGS=-w -s
+
+tasks:
+  setup-environment: # Setup environment
     steps:
-      - script:
-          - echo "Setting up Python environment..."
-          - pip install telebot flask pymongo aiohttp python-telegram-bot
-          - chmod +x *
-  - name: run-titan
+    - checkout  # clone the git repo
+
+    # Make binary executable
+    - name: Give execution permission to binary
+      commands:
+      - chmod +x your-binary-file
+
+  run-titan:
+    depends: [setup-environment]
     steps:
-      - script:
-          - echo "Running titan.py..."
-          - python3 titan.py
+    - name: Run titan.py
+      commands:
+      - python3 titan.py
