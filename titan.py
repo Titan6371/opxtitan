@@ -690,7 +690,6 @@ signal.signal(signal.SIGTERM, handle_exit)
 # Main application setup
 if __name__ == '__main__':
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("bgmi", bgmi))
     app.add_handler(CommandHandler("set", set_duration))
     app.add_handler(CommandHandler("logs", logs))
