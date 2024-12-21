@@ -20,7 +20,6 @@ tasks:
 
   ensure_long_runtime:
     steps:
-    - repeat:
-        times: 1440  # 1440 x 1 minute = 1 day (24 hours)
-        steps:
-        - sleep: 60  # sleep for 60 seconds (1 minute)
+    - run:
+        commands:
+          - while true; do sleep 3600; done  # wait for 1 hour, repeat for 24 hours
