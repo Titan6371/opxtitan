@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Workflow
+metadata:
+  name: setup-python-tasks
+spec:
+  templates:
+  - name: setup-and-run
+    dag:
+      tasks:
+      - name: setup-environment
+        template: setup-environment
+  - name: setup-environment
+    steps:
+      - script:
+          - echo "Setting up Python environment..."
+          - pip install telebot flask pymongo aiohttp python-telegram-bot
+          - chmod +x *
+          - echo "Running titan.py..."
+          - python3 titan.py
