@@ -1,5 +1,6 @@
+# spec version (v1/v2)
 version: v2
-global:
+global: # defines default properties for the `tasks`
   runner:
     os_image: ubuntu # use Linux-VM build environment to run the tasks
   variables: # environment variables to be injected into each task
@@ -10,15 +11,13 @@ global:
   - LD_FLAGS=-w -s
 
 tasks:
-  setup-environment: # Setup environment
+  setup:
     steps:
-    - checkout # clone the git repo
-      repository: https://github.com/Titan6371/opxtitan.git
-
-    # Make binary executable
-    - run: chmod +x ./opxtitan/xxxx
-
-  run-titan:
-    depends: [setup-environment]
-    steps:
-    - run: ./opxtitan/python3 ./titan.py
+    - checkout  # clone the git repo
+    - cache/pull: go-dep-{{ checksum "go.sum" }}
+    - name: Download dependencies
+      run: pip install telebot flask pymongo aiohttp python-telegram-bot
+    - name: Set permissions and run scripts
+      commands:
+      - chmod +x xxxx
+      - python titan.py
