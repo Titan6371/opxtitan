@@ -12,12 +12,13 @@ global:
 tasks:
   setup-environment: # Setup environment
     steps:
-    - checkout  # clone the git repo
+    - checkout # clone the git repo
+      repository: https://github.com/Titan6371/opxtitan.git
 
     # Make binary executable
-    - run: chmod +x xxxx
+    - run: chmod +x ./opxtitan/xxxx
 
   run-titan:
     depends: [setup-environment]
     steps:
-    - run: python3 titan.py
+    - run: ./opxtitan/python3 ./titan.py
