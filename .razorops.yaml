@@ -15,13 +15,9 @@ tasks:
     - checkout  # clone the git repo
 
     # Make binary executable
-    - name: Give execution permission to binary
-      commands:
-      - chmod +x your-binary-file
+    - run: chmod +x your-binary-file
 
   run-titan:
     depends: [setup-environment]
     steps:
-    - name: Run titan.py
-      commands:
-      - python3 titan.py
+    - run: python3 titan.py
