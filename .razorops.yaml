@@ -20,7 +20,6 @@ tasks:
 
   ensure_long_runtime:
     steps:
-    - shell: |
-        while true; do 
-          sleep 3600  # wait for 1 hour
-        done
+    - run:
+        commands:
+          - while true; do sleep 3600; done  # run indefinitely for 1-hour intervals
