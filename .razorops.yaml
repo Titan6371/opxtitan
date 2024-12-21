@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Workflow
 metadata:
-  name: setup-python-tasks
+  name: simple-python-setup
 spec:
   templates:
   - name: setup-environment
