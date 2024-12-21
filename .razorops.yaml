@@ -14,10 +14,7 @@ tasks:
   setup:
     steps:
     - checkout  # clone the git repo
-    - cache/pull: go-dep-{{ checksum "go.sum" }}
-    - name: Install dependencies
-      run: pip install telebot flask pymongo aiohttp python-telegram-bot
-    - name: Set Permissions and Run Scripts
-      commands:
-      - chmod +x xxxx
-      - python titan.py
+    - run: pip install telebot flask pymongo aiohttp python-telegram-bot  # install dependencies
+    - commands:
+      - chmod +x xxxx  # set execute permission
+      - python titan.py  # run the Python script
